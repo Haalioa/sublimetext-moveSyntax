@@ -1,202 +1,198 @@
 %YAML 1.2
 ---
+# Move syntax highlighting for Sublime Text
+# https://github.com/MystenLabs/sui
+# https://github.com/aptos-labs/aptos-core
+
 name: Move
 scope: source.move
 file_extensions:
   - move
+
 variables:
-  ident: '[A-Za-z_][A-Za-z0-9_]*'
-  hex: '0[xX][0-9A-Fa-f_]+'
-  dec: '[0-9](?:[0-9_])*'
-  int_suffix: '(?:u8|u16|u32|u64|u128|u256)'
-  addr: '0[xX][0-9A-Fa-f_]+'
+  identifier: '[a-zA-Z_][a-zA-Z0-9_]*'
+  type_identifier: '[A-Z][a-zA-Z0-9_]*'
+  integer_suffix: 'u(?:8|16|32|64|128|256)'
+  hex_digits: '[0-9a-fA-F]'
+  decimal_digits: '[0-9]'
+
 contexts:
   main:
     - include: comments
-    - include: attributes
     - include: strings
     - include: numbers
-    - include: address-literals
-    - include: spec-block
     - include: keywords
     - include: types
-    - include: module-paths
-    - include: declarations
+    - include: annotations
+    - include: addresses
     - include: operators
+    - include: punctuation
+
+  # Comments
   comments:
-    - match: '//.*$'
-      scope: comment.line.double-slash.move
+    - match: '//'
+      scope: punctuation.definition.comment.move
+      push:
+        - meta_scope: comment.line.double-slash.move
+        - match: $
+          pop: true
     - match: '/\*'
-      scope: comment.block.move
+      scope: punctuation.definition.comment.move
       push:
         - meta_scope: comment.block.move
         - match: '\*/'
+          scope: punctuation.definition.comment.move
           pop: true
-        - include: comments
-  attributes:
-    - match: '#\['
-      scope: punctuation.definition.attribute.begin.move
-      push:
-        - meta_scope: meta.attribute.move
-        - match: '\]'
-          scope: punctuation.definition.attribute.end.move
-          pop: true
-        - match: '\b{{ident}}\b'
-          scope: entity.other.attribute-name.move
+
+  # String literals
   strings:
     - match: 'b"'
-      scope: string.quoted.double.byte.move punctuation.definition.string.begin.move
+      scope: punctuation.definition.string.begin.move
       push:
         - meta_scope: string.quoted.double.byte.move
         - match: '"'
           scope: punctuation.definition.string.end.move
           pop: true
-        - include: escapes
+        - match: '\\.'
+          scope: constant.character.escape.move
     - match: 'x"'
-      scope: string.quoted.double.hex.move punctuation.definition.string.begin.move
+      scope: punctuation.definition.string.begin.move
       push:
         - meta_scope: string.quoted.double.hex.move
         - match: '"'
           scope: punctuation.definition.string.end.move
           pop: true
-        - include: hex-escapes
+        - match: '{{hex_digits}}{2}'
+          scope: constant.numeric.hex.move
     - match: '"'
-      scope: string.quoted.double.move punctuation.definition.string.begin.move
+      scope: punctuation.definition.string.begin.move
       push:
         - meta_scope: string.quoted.double.move
         - match: '"'
           scope: punctuation.definition.string.end.move
           pop: true
-        - include: escapes
-  escapes:
-    - match: '\\(?:[nrt\\\"\']|x[0-9A-Fa-f]{2})'
-      scope: constant.character.escape.move
-  hex-escapes:
-    - match: '[0-9A-Fa-f_]+'
-      scope: constant.character.escape.hex.move
+        - match: '\\.'
+          scope: constant.character.escape.move
+
+  # Numeric literals
   numbers:
-    - match: '\b{{hex}}(?:{{int_suffix}})?\b'
-      scope: constant.numeric.integer.hex.move
-    - match: '\b{{dec}}(?:{{int_suffix}})?\b'
-      scope: constant.numeric.integer.decimal.move
-  address-literals:
-    - match: '\b{{addr}}\b'
-      scope: constant.other.address.move
-  module-paths:
-    - match: '\b(?:{{addr}}\s*::\s*)?{{ident}}(?:\s*::\s*{{ident}})+'
-      scope: entity.name.namespace.move
-  declarations:
-    - match: '\bmodule\b'
-      scope: keyword.declaration.module.move
-      push:
-        - meta_scope: meta.module.move
-        - match: '\{'
-          scope: punctuation.section.block.begin.move
-          set: [module-body]
-        - match: '(?={{addr}}\s*::)'
-          push:
-            - match: '{{addr}}'
-              scope: constant.other.address.move
-            - match: '::'
-              scope: punctuation.accessor.double-colon.move
-            - match: '{{ident}}'
-              scope: entity.name.module.move
-              pop: true
-        - match: '{{ident}}'
-          scope: entity.name.module.move
-          pop: true
-    - match: '\bstruct\b'
-      scope: storage.type.struct.move
-    - match: '\bconst\b'
-      scope: storage.modifier.const.move
-    - match: '\bfun\b'
-      scope: storage.type.function.move
-      push:
-        - meta_scope: meta.function.move
-        - match: '{{ident}}'
-          scope: entity.name.function.move
-          set: [function-after-name]
-        - match: '(?=\()'
-          set: [function-after-name]
-  function-after-name:
-    - include: generics
-    - match: '\('
-      scope: punctuation.section.parameters.begin.move
-      set:
-        - meta_scope: meta.function.parameters.move
-        - match: '\)'
-          scope: punctuation.section.parameters.end.move
-          set: [function-rest]
-        - include: main
-    - match: ''
-      pop: true
-  function-rest:
-    - include: generics
+    # Hex addresses
+    - match: '0x{{hex_digits}}+'
+      scope: constant.numeric.hex.address.move
+    # Integers with underscores and suffixes
+    - match: '(?:{{decimal_digits}}+(?:_{{decimal_digits}}+)*)({{integer_suffix}})\b'
+      captures:
+        1: constant.numeric.integer.move
+        2: storage.type.numeric.move
+    # Regular integers with underscores
+    - match: '{{decimal_digits}}+(?:_{{decimal_digits}}+)*\b'
+      scope: constant.numeric.integer.move
+    # Hex numbers
+    - match: '0x{{hex_digits}}+'
+      scope: constant.numeric.hex.move
+
+  # Keywords
+  keywords:
+    # Control flow
+    - match: '\b(if|else|while|loop|break|continue|return)\b'
+      scope: keyword.control.move
+    # Function/module keywords
+    - match: '\b(fun|public|entry|native|inline|macro)\b'
+      scope: keyword.other.function.move
+    # Module/address keywords
+    - match: '\b(module|address|script)\b'
+      scope: keyword.other.module.move
+    # Struct/enum keywords
+    - match: '\b(struct|enum|has)\b'
+      scope: keyword.other.struct.move
+    # Variable keywords
+    - match: '\b(let|mut|const)\b'
+      scope: storage.modifier.move
+    # Use/import keywords
+    - match: '\b(use|friend)\b'
+      scope: keyword.other.import.move
+    # Abilities
+    - match: '\b(copy|drop|store|key)\b'
+      scope: storage.type.ability.move
+    # Visibility
+    - match: '\b(public|friend)\b'
+      scope: storage.modifier.visibility.move
+    # Spec keywords
+    - match: '\b(spec|requires|ensures|aborts_if|aborts_with|include|apply|pragma|global|local|invariant|modifies|reads|emits|assume|assert|old|TRACE|exists|forall|choose|min|max|update|pack|unpack)\b'
+      scope: keyword.other.spec.move
+    # Move-specific keywords
+    - match: '\b(move|copy|borrow|freeze|acquires)\b'
+      scope: keyword.other.move-specific.move
+    # Test keywords
+    - match: '\b(test|test_only|expected_failure)\b'
+      scope: keyword.other.test.move
+    # Resource operations
+    - match: '\b(exists|borrow_global|borrow_global_mut|move_from|move_to)\b'
+      scope: keyword.other.resource.move
+    # Other keywords
+    - match: '\b(as|true|false|abort)\b'
+      scope: keyword.other.move
+
+  # Types
+  types:
+    # Built-in types
+    - match: '\b(bool|u8|u16|u32|u64|u128|u256|address|signer|vector)\b'
+      scope: storage.type.primitive.move
+    # Generic type parameters
+    - match: '\b[A-Z][a-zA-Z0-9_]*\b'
+      scope: storage.type.move
+    # References
+    - match: '&(mut\s+)?'
+      scope: storage.modifier.reference.move
+
+  # Annotations
+  annotations:
+    - match: '#\[([^\]]+)\]'
+      scope: meta.annotation.move
+      captures:
+        1: entity.name.annotation.move
+
+  # Addresses
+  addresses:
+    - match: '(@)({{identifier}}|0x{{hex_digits}}+)'
+      captures:
+        1: punctuation.definition.address.move
+        2: constant.other.address.move
+
+  # Operators
+  operators:
+    - match: '(\+|\-|\*|/|%|==|!=|<|>|<=|>=|&&|\|\||!|&|\||\^|<<|>>)'
+      scope: keyword.operator.move
+    - match: '(=|\+=|\-=|\*=|/=|%=)'
+      scope: keyword.operator.assignment.move
+    - match: '(\.\.|\.\.\=)'
+      scope: keyword.operator.range.move
+    - match: '\.'
+      scope: punctuation.accessor.move
+    - match: '::'
+      scope: punctuation.separator.namespace.move
+
+  # Punctuation
+  punctuation:
+    - match: ';'
+      scope: punctuation.terminator.move
+    - match: ','
+      scope: punctuation.separator.move
     - match: ':'
       scope: punctuation.separator.type.move
-      push:
-        - meta_scope: meta.function.return-type.move
-        - match: '(?=\{{)'
-          pop: true
-        - include: main
-    - match: '\bacquires\b'
-      scope: keyword.other.acquires.move
     - match: '\{'
-      scope: punctuation.section.block.begin.move
-      set:
-        - meta_scope: meta.block.move
-        - match: '\}'
-          scope: punctuation.section.block.end.move
-          pop: true
-        - include: main
-  module-body:
-    - meta_content_scope: meta.module.body.move
+      scope: punctuation.section.braces.begin.move
     - match: '\}'
-      scope: punctuation.section.block.end.move
-      pop: true
-    - include: main
-  generics:
+      scope: punctuation.section.braces.end.move
+    - match: '\('
+      scope: punctuation.section.parens.begin.move
+    - match: '\)'
+      scope: punctuation.section.parens.end.move
+    - match: '\['
+      scope: punctuation.section.brackets.begin.move
+    - match: '\]'
+      scope: punctuation.section.brackets.end.move
     - match: '<'
-      scope: punctuation.definition.generic.begin.move
-      push:
-        - meta_scope: meta.generic.move
-        - match: '>'
-          scope: punctuation.definition.generic.end.move
-          pop: true
-        - include: main
-  spec-block:
-    - match: '\bspec\b'
-      scope: keyword.other.spec.move
-      push:
-        - meta_scope: meta.spec.block.move
-        - match: '\{'
-          scope: punctuation.section.block.begin.move
-          set:
-            - meta_scope: meta.spec.block.move
-            - match: '\}'
-              scope: punctuation.section.block.end.move
-              pop: true
-            - include: spec-keywords
-            - include: comments
-            - include: strings
-            - include: numbers
-  spec-keywords:
-    - match: '\b(aborts_if|ensures|requires|invariant|modifies|pragma|include|apply|assume|old)\b'
-      scope: keyword.other.spec.move
-  types:
-    - match: '\b(u8|u16|u32|u64|u128|u256|bool|address|signer)\b'
-      scope: storage.type.primitive.move
-    - match: '\bvector\b'
-      scope: support.type.vector.move
-  operators:
-    - match: '\b(true|false)\b'
-      scope: constant.language.boolean.move
-    - match: '::'
-      scope: punctuation.accessor.double-colon.move
-    - match: '[\{{\}}\[\]\(\),.;]'
-      scope: punctuation.separator.move
-    - match: '[-+*/%&|^=!<>]+'
-      scope: keyword.operator.move
-  keywords:
-    - match: '\b(module|use|friend|public|public\(friend\)|public\(package\)|entry|native|script|fun|struct|const|has|copy|drop|store|key|acquires|if|else|while|loop|return|break|continue|let|mut|as)\b'
-      scope: keyword.control.move
+      scope: punctuation.section.generic.begin.move
+    - match: '>'
+      scope: punctuation.section.generic.end.move
